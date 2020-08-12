@@ -179,7 +179,8 @@ namespace metabase_exporter
         public string Type { get; set; }
 
         [JsonProperty("default")]
-        public string Default { get; set; }
+        [JsonConverter(typeof(SingleOrArrayConverter<string>))]
+        public object Default { get; set; }
     }
 
     /// <summary>
@@ -277,11 +278,34 @@ namespace metabase_exporter
         /// </summary>
         [JsonProperty("status")]
         public string Status { get; set; }
-        
+
         /// <summary>
         /// If <see cref="Status"/> == "failed"
         /// </summary>
         [JsonProperty("error")]
         public string Error { get; set; }
+    }
+
+    class SingleOrArrayConverter<T> : JsonConverter
+    {
+        public override bool CanConvert(Type objectType)
+        {
+            return true;
+        }
+
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        {
+            JToken token = JToken.Load(reader);
+            if (token.Type == JTokenType.Array)
+            {
+                return token.ToObject<List<T>>();
+            }
+            return token.ToObject<T>();
+        }
+
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        {
+            serializer.Serialize(writer, value);
+        }
     }
 }
