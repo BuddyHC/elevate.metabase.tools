@@ -131,4 +131,29 @@ namespace metabase_exporter
         public static bool operator ==(DatabaseId a, DatabaseId b) => a.CompareTo(b) == 0;
         public static bool operator !=(DatabaseId a, DatabaseId b) => !(a == b);
     }
+
+    [JsonConverter(typeof(IdJsonConverter<UserId>))]
+    public struct UserId : INewTypeComp<UserId, int>
+    {
+        public int Value { get; }
+
+        public UserId(int value)
+        {
+            Value = value;
+        }
+
+        public int CompareTo(UserId other) => Value.CompareTo(other.Value);
+        public bool Equals(UserId other) => Value.Equals(other.Value);
+        public UserId New(int value) => new UserId(value);
+
+        public override int GetHashCode() => Value.GetHashCode();
+        public override string ToString() => Value.ToString();
+
+        public static bool operator >(UserId a, UserId b) => a.CompareTo(b) > 0;
+        public static bool operator <(UserId a, UserId b) => a.CompareTo(b) < 0;
+        public static bool operator <=(UserId a, UserId b) => a.CompareTo(b) <= 0;
+        public static bool operator >=(UserId a, UserId b) => a.CompareTo(b) >= 0;
+        public static bool operator ==(UserId a, UserId b) => a.CompareTo(b) == 0;
+        public static bool operator !=(UserId a, UserId b) => !(a == b);
+    }
 }

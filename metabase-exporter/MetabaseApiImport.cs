@@ -28,11 +28,11 @@ namespace metabase_exporter
             Console.WriteLine("Creating collections...");
             var collectionMapping = await api.MapAndCreateCollections(state.Collections);
 
-            Console.WriteLine("Deleting all dashboards...");
-            await api.DeleteAllDashboards();
+            // Console.WriteLine("Deleting all dashboards...");
+            // await api.DeleteAllDashboards();
 
-            Console.WriteLine("Deleting all cards...");
-            await api.DeleteAllCards();
+            // Console.WriteLine("Deleting all cards...");
+            // await api.DeleteAllCards();
 
             Console.WriteLine("Creating cards...");
             var partialCardMapping = await state.Cards
@@ -108,6 +108,13 @@ namespace metabase_exporter
             var mappedCards = MapDashboardCards(stateDashboard.Cards, cardMapping).ToList();
             if (stateDashboard.CollectionId.HasValue)
             {
+                // var test = collectionMapping
+                //     .Where(x => x.Source.Id == stateDashboard.CollectionId.Value);
+
+                // var test2 = test.Select(x => x.Target.Id);
+
+                // var test3 = test2.First();
+
                 stateDashboard.CollectionId = collectionMapping
                     .Where(x => x.Source.Id == stateDashboard.CollectionId.Value)
                     .Select(x => x.Target.Id)

@@ -132,6 +132,12 @@ namespace metabase_exporter
 
         [JsonProperty("archived")]
         public bool Archived { get; set; }
+
+        [JsonProperty("personal_owner_id")]
+        public UserId? PersonalOwnerId { get; set; }
+
+        [JsonProperty("location")]
+        public string Location { get; set; }
     }
 
     public class Dashboard

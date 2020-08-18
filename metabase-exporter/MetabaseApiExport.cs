@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace metabase_exporter
@@ -15,11 +14,11 @@ namespace metabase_exporter
         /// <summary>
         /// Export Metabase data
         /// </summary>
-        public static async Task<MetabaseState> Export(this MetabaseApi api, bool excludePersonalCollections)
+        public static async Task<MetabaseState> Export(this MetabaseApi api, bool excludePersonalCollections, CollectionId? targetCollectionId)
         {
-            var mappedCollections = await api.GetMappedCollections(excludePersonalCollections);
+            var mappedCollections = await api.GetMappedCollections(excludePersonalCollections, targetCollectionId);
             var mappedCards = await api.GetMappedCards(mappedCollections.CollectionMapping);
-            var mappedDashboards = await api.GetMappedDashboards(mappedCards.CardMapping, mappedCollections.Collections);
+            var mappedDashboards = await api.GetMappedDashboards(mappedCards.CardMapping, mappedCollections.CollectionMapping);
 
             var state = new MetabaseState
             {
@@ -32,12 +31,12 @@ namespace metabase_exporter
         }
 
         static async Task<(IReadOnlyCollection<Dashboard> Dashboards, IReadOnlyDictionary<DashboardId, DashboardId> DashboardMapping)>
-            GetMappedDashboards(this MetabaseApi api, IReadOnlyDictionary<CardId, CardId> cardMapping, IReadOnlyCollection<Collection> exportedCollections)
+            GetMappedDashboards(this MetabaseApi api, IReadOnlyDictionary<CardId, CardId> cardMapping, IReadOnlyDictionary<CollectionId, CollectionId> collectionMapping)
         {
             var dashboards = await api.GetAllDashboards();
             var nonArchivedDashboards = dashboards
                 .Where(x => x.Archived == false)
-                .Where(dashboard => dashboard.CollectionId.HasValue == false || exportedCollections.Any(collection => collection.Id == dashboard.CollectionId))
+                .Where(dashboard => dashboard.CollectionId.HasValue && collectionMapping.ContainsKey(dashboard.CollectionId.Value))
                 .OrderBy(x => x.Id)
                 .ToArray();
             var dashboardMapping = Renumber(nonArchivedDashboards.Select(x => x.Id).ToList());
@@ -99,12 +98,13 @@ namespace metabase_exporter
         }
 
         static async Task<(IReadOnlyCollection<Collection> Collections, IReadOnlyDictionary<CollectionId, CollectionId> CollectionMapping)> 
-            GetMappedCollections(this MetabaseApi api, bool excludePersonalCollections)
+            GetMappedCollections(this MetabaseApi api, bool excludePersonalCollections, CollectionId? targetCollectionId)
         {
             var collections = await api.GetAllCollections();
             var collectionsToExport = collections
                 .Where(x => x.Archived == false)
-                .Where(x => excludePersonalCollections == false || x.IsPersonal() == false)
+                .Where(x => excludePersonalCollections == false || x.IsPersonal(collections) == false)
+                .Where(x => !targetCollectionId.HasValue || x.Id == targetCollectionId.Value || x.IsChildOf(targetCollectionId.Value))
                 .OrderBy(x => x.Id)
                 .ToArray();
             var collectionMapping = Renumber(collectionsToExport.Select(x => x.Id).ToList());
@@ -116,8 +116,30 @@ namespace metabase_exporter
         }
 
         [Pure]
-        static bool IsPersonal(this Collection collection) =>
-            Regex.IsMatch(collection.Name, "personal collection", RegexOptions.IgnoreCase);
+        static bool IsPersonal(this Collection collection, IReadOnlyList<Collection> collections) {
+            if (collection.PersonalOwnerId.HasValue)
+                return true;
+            
+            string rootLocation = collection.Location?.Split("/")[1];
+            if (!string.IsNullOrEmpty(rootLocation)) {
+                CollectionId rootLocationId = new CollectionId(Int32.Parse(rootLocation));
+                Collection rootCollection = collections.FirstOrDefault(c => c.Id == rootLocationId);
+                return rootCollection.PersonalOwnerId.HasValue;
+            }
+            
+            return false;
+        }
+
+        [Pure]
+        static bool IsChildOf(this Collection collection, CollectionId targetCollectionId) {
+            string rootLocation = collection.Location?.Split("/")[1];
+            if (!string.IsNullOrEmpty(rootLocation)) {
+                CollectionId rootLocationId = new CollectionId(Int32.Parse(rootLocation));
+                return rootLocationId == targetCollectionId;
+            }
+            
+            return false;
+        }
         
         [Pure]
         static IReadOnlyDictionary<T, T> Renumber<T>(IReadOnlyCollection<T> ids) where T: INewTypeComp<T, int>, new() =>

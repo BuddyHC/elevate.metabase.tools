@@ -18,11 +18,15 @@ namespace metabase_exporter
         {
             public string OutputFilename { get; }
             public bool ExcludePersonalCollections { get; }
+            public CollectionId? TargetCollectionId { get; }
 
-            public Export(MetabaseApiSettings metabaseApiSettings, string outputFilename, bool excludePersonalCollections) : base(metabaseApiSettings)
+            public Export(MetabaseApiSettings metabaseApiSettings, string outputFilename, bool excludePersonalCollections, string targetCollectionId) : base(metabaseApiSettings)
             {
                 OutputFilename = outputFilename;
                 ExcludePersonalCollections = excludePersonalCollections;
+                if (!string.IsNullOrEmpty(targetCollectionId)) {
+                    TargetCollectionId = new CollectionId(Int32.Parse(targetCollectionId));
+                }
             }
 
             public override T Switch<T>(Func<Export, T> export, Func<Import, T> import, Func<TestQuestions, T> testQuestions) =>
